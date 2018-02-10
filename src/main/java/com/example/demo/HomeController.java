@@ -118,6 +118,7 @@ public class HomeController {
                     try {
                         List<RatesTable> listTables = getTables(nbpApiUrl);
                         if (null != listTables) {
+                            long tableCount = listTables.size();
                             Map<String, Double> mapMin = new HashMap<>();
                             Map<String, Double> mapMax = new HashMap<>();
                             for (RatesTable table : listTables) {
@@ -153,7 +154,7 @@ public class HomeController {
                                 } else {
                                     message = "Częściowe dane już w bazie ";
                                     databaseCheck++;
-                                    if (databaseCheck == (daysBetween + 1)) {
+                                    if (databaseCheck == tableCount) {
                                         message = "Pełne dane były już w bazie ";
                                     }
                                 }
@@ -164,7 +165,7 @@ public class HomeController {
                             model.addAttribute("maxRate", mapMax);
 
                         } else {
-                            message = "W wybranym okresie nie było publikacji tabel kursów";
+                            message = "Błędny zakres dat bądź w wybranym okresie nie było publikacji tabel kursów";
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
