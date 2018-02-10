@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -48,9 +47,10 @@ public class HomeController {
                                 exchangeCurrencyRepository.save(rate);
                             }
                         } else {
-                            message = "Część danych już w bazie ";
                             if (message.equals("Część danych już w bazie ")) {
-                                message = "Dane już w bazie";
+                                message = "Dane były już w bazie";
+                            } else {
+                                message = "Część danych już w bazie ";
                             }
                         }
                     }
@@ -60,7 +60,7 @@ public class HomeController {
                     message = "Błąd, smuteczek";
                 }
             } else {
-                message = "Dwa ostatnie notowania są już w bazie";
+                message = "Dane pobrane z bazy lokalnej.";
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -73,10 +73,10 @@ public class HomeController {
     public String searchDate(@RequestParam String tableDate, Model model) {
         String message = "";
         if ("" != tableDate) {
-            String nbpApiUrl = "http://api.nbp.pl/api/exchangerates/tables/A/" + tableDate + "?format=json";
             LocalDate dateToCheckInDatabase = LocalDate.parse(tableDate);
             try {
                 if (null == ratesTableRepository.findByTableDate(dateToCheckInDatabase)) {
+                    String nbpApiUrl = "http://api.nbp.pl/api/exchangerates/tables/A/" + tableDate + "?format=json";
                     List<RatesTable> tableFromQuery = getTables(nbpApiUrl);
                     RatesTable singleResultTable = tableFromQuery.get(0);
                     List<ExchangeCurrency> tableRates = singleResultTable.getCurrencies();
@@ -87,10 +87,10 @@ public class HomeController {
                         exchangeCurrencyRepository.save(rate);
                     }
                     model.addAttribute("tableQueryResult", tableFromDatabase);
-                    message = "Dane pobrane.";
+                    message = "Dane pobrane z API NPB.";
                 } else {
-                    message = "Dane są już w bazie.";
                     RatesTable tableFromDatabase = ratesTableRepository.findByTableDate(dateToCheckInDatabase);
+                    message = "Dane pobrane z bazy lokalnej.";
                     model.addAttribute("tableQueryResult", tableFromDatabase);
                 }
             } catch (Exception e) {
@@ -113,12 +113,79 @@ public class HomeController {
             long databaseCheck = 0;
             if (daysBetween <= 67) {
                 if (daysBetween > 0) {
-                    String nbpApiUrl = "http://api.nbp.pl/api/exchangerates/tables/A/" + tableDateFrom + "/"
-                            + tableDateTo + "?format=json" + "?format=json";
-                    try {
-                        List<RatesTable> listTables = getTables(nbpApiUrl);
+                    boolean dataInDatabase = true;
+                    for (int i = 0; i <= daysBetween; i++) {
+                        if (null == ratesTableRepository.findByTableDate(minDate.plusDays(i))) {
+                            dataInDatabase = false;
+                            break;
+                        }
+                    }
+                    if (!dataInDatabase) {
+                        try {
+                            String nbpApiUrl = "http://api.nbp.pl/api/exchangerates/tables/A/" + tableDateFrom + "/"
+                                    + tableDateTo + "?format=json" + "?format=json";
+                            List<RatesTable> listTables = getTables(nbpApiUrl);
+                            if (null != listTables) {
+                                long tableCount = listTables.size();
+                                Map<String, Double> mapMin = new HashMap<>();
+                                Map<String, Double> mapMax = new HashMap<>();
+                                for (RatesTable table : listTables) {
+                                    if (table.getTableDate().isBefore(maxDate)) {
+                                        maxDate = table.getTableDate();
+                                    }
+                                    if (table.getTableDate().isAfter(minDate)) {
+                                        minDate = table.getTableDate();
+                                    }
+                                    List<ExchangeCurrency> tableRates = table.getCurrencies();
+                                    for (ExchangeCurrency rateToCheck : tableRates) {
+                                        if (!mapMin.containsKey(rateToCheck.getCurrencyCode())) {
+                                            mapMin.put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
+                                            mapMax.put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
+                                        } else {
+                                            if (mapMin.get(rateToCheck.getCurrencyCode()) > rateToCheck
+                                                    .getExchangeRate()) {
+                                                mapMin.put(rateToCheck.getCurrencyCode(),
+                                                        rateToCheck.getExchangeRate());
+                                            }
+                                            if (mapMax.get(rateToCheck.getCurrencyCode()) < rateToCheck
+                                                    .getExchangeRate()) {
+                                                mapMax.put(rateToCheck.getCurrencyCode(),
+                                                        rateToCheck.getExchangeRate());
+                                            }
+                                        }
+                                    }
+                                    if (null == ratesTableRepository.findByTableNumber(table.getTableNumber())) {
+                                        ratesTableRepository.save(table);
+                                        RatesTable tableFromDatabase = ratesTableRepository
+                                                .findByTableDate(table.getTableDate());
+                                        for (ExchangeCurrency rate : tableRates) {
+                                            rate.setTable(tableFromDatabase);
+                                            exchangeCurrencyRepository.save(rate);
+                                        }
+                                        message = "Dane pobrane.";
+                                    } else {
+                                        message = "Częściowe dane już w bazie ";
+                                        databaseCheck++;
+                                        if (databaseCheck == tableCount) {
+                                            message = "Pełne dane były już w bazie ";
+                                        }
+                                    }
+                                }
+                                model.addAttribute("tableOld", ratesTableRepository.findByTableDate(maxDate));
+                                model.addAttribute("tableNew", ratesTableRepository.findByTableDate(minDate));
+                                model.addAttribute("minRate", mapMin);
+                                model.addAttribute("maxRate", mapMax);
+
+                            } else {
+                                message = "Błędny zakres dat bądź w wybranym okresie nie było publikacji tabel kursów";
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    } else {
+                        List<RatesTable> listTables = ratesTableRepository
+                                .findByTableDateGreaterThanEqualAndTableDateLessThanEqual(minDate, maxDate);
                         if (null != listTables) {
-                            long tableCount = listTables.size();
                             Map<String, Double> mapMin = new HashMap<>();
                             Map<String, Double> mapMax = new HashMap<>();
                             for (RatesTable table : listTables) {
@@ -142,33 +209,15 @@ public class HomeController {
                                         }
                                     }
                                 }
-                                if (null == ratesTableRepository.findByTableNumber(table.getTableNumber())) {
-                                    ratesTableRepository.save(table);
-                                    RatesTable tableFromDatabase = ratesTableRepository
-                                            .findByTableDate(table.getTableDate());
-                                    for (ExchangeCurrency rate : tableRates) {
-                                        rate.setTable(tableFromDatabase);
-                                        exchangeCurrencyRepository.save(rate);
-                                    }
-                                    message = "Dane pobrane.";
-                                } else {
-                                    message = "Częściowe dane już w bazie ";
-                                    databaseCheck++;
-                                    if (databaseCheck == tableCount) {
-                                        message = "Pełne dane były już w bazie ";
-                                    }
-                                }
                             }
                             model.addAttribute("tableOld", ratesTableRepository.findByTableDate(maxDate));
                             model.addAttribute("tableNew", ratesTableRepository.findByTableDate(minDate));
                             model.addAttribute("minRate", mapMin);
                             model.addAttribute("maxRate", mapMax);
-
                         } else {
-                            message = "Błędny zakres dat bądź w wybranym okresie nie było publikacji tabel kursów";
+                            message = "Błąd przy pobieraniu z bazy lokalnej";
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                        message = "Dane pobrane z bazy lokalnej.";
                     }
                 } else {
                     message = "Druga data musi być większa niż startowa";
