@@ -123,37 +123,12 @@ public class HomeController {
                     if (!dataInDatabase) {
                         try {
                             String nbpApiUrl = "http://api.nbp.pl/api/exchangerates/tables/A/" + tableDateFrom + "/"
-                                    + tableDateTo + "?format=json" + "?format=json";
+                                    + tableDateTo + "?format=json";
                             List<RatesTable> listTables = getTables(nbpApiUrl);
                             if (null != listTables) {
                                 long tableCount = listTables.size();
-                                Map<String, Double> mapMin = new HashMap<>();
-                                Map<String, Double> mapMax = new HashMap<>();
                                 for (RatesTable table : listTables) {
-                                    if (table.getTableDate().isBefore(maxDate)) {
-                                        maxDate = table.getTableDate();
-                                    }
-                                    if (table.getTableDate().isAfter(minDate)) {
-                                        minDate = table.getTableDate();
-                                    }
                                     List<ExchangeCurrency> tableRates = table.getCurrencies();
-                                    for (ExchangeCurrency rateToCheck : tableRates) {
-                                        if (!mapMin.containsKey(rateToCheck.getCurrencyCode())) {
-                                            mapMin.put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
-                                            mapMax.put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
-                                        } else {
-                                            if (mapMin.get(rateToCheck.getCurrencyCode()) > rateToCheck
-                                                    .getExchangeRate()) {
-                                                mapMin.put(rateToCheck.getCurrencyCode(),
-                                                        rateToCheck.getExchangeRate());
-                                            }
-                                            if (mapMax.get(rateToCheck.getCurrencyCode()) < rateToCheck
-                                                    .getExchangeRate()) {
-                                                mapMax.put(rateToCheck.getCurrencyCode(),
-                                                        rateToCheck.getExchangeRate());
-                                            }
-                                        }
-                                    }
                                     if (null == ratesTableRepository.findByTableNumber(table.getTableNumber())) {
                                         ratesTableRepository.save(table);
                                         RatesTable tableFromDatabase = ratesTableRepository
@@ -171,11 +146,13 @@ public class HomeController {
                                         }
                                     }
                                 }
-                                model.addAttribute("tableOld", ratesTableRepository.findByTableDate(maxDate));
-                                model.addAttribute("tableNew", ratesTableRepository.findByTableDate(minDate));
-                                model.addAttribute("minRate", mapMin);
-                                model.addAttribute("maxRate", mapMax);
-
+                                Indicators indicators = getIndicators(listTables, minDate, maxDate);
+                                model.addAttribute("tableNew",
+                                        ratesTableRepository.findByTableDate(indicators.getMaxDate()));
+                                model.addAttribute("tableOld",
+                                        ratesTableRepository.findByTableDate(indicators.getMinDate()));
+                                model.addAttribute("minRate", indicators.getMapMin());
+                                model.addAttribute("maxRate", indicators.getMapMax());
                             } else {
                                 message = "Błędny zakres dat bądź w wybranym okresie nie było publikacji tabel kursów";
                             }
@@ -186,34 +163,13 @@ public class HomeController {
                         List<RatesTable> listTables = ratesTableRepository
                                 .findByTableDateGreaterThanEqualAndTableDateLessThanEqual(minDate, maxDate);
                         if (null != listTables) {
-                            Map<String, Double> mapMin = new HashMap<>();
-                            Map<String, Double> mapMax = new HashMap<>();
-                            for (RatesTable table : listTables) {
-                                if (table.getTableDate().isBefore(maxDate)) {
-                                    maxDate = table.getTableDate();
-                                }
-                                if (table.getTableDate().isAfter(minDate)) {
-                                    minDate = table.getTableDate();
-                                }
-                                List<ExchangeCurrency> tableRates = table.getCurrencies();
-                                for (ExchangeCurrency rateToCheck : tableRates) {
-                                    if (!mapMin.containsKey(rateToCheck.getCurrencyCode())) {
-                                        mapMin.put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
-                                        mapMax.put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
-                                    } else {
-                                        if (mapMin.get(rateToCheck.getCurrencyCode()) > rateToCheck.getExchangeRate()) {
-                                            mapMin.put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
-                                        }
-                                        if (mapMax.get(rateToCheck.getCurrencyCode()) < rateToCheck.getExchangeRate()) {
-                                            mapMax.put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
-                                        }
-                                    }
-                                }
-                            }
-                            model.addAttribute("tableOld", ratesTableRepository.findByTableDate(maxDate));
-                            model.addAttribute("tableNew", ratesTableRepository.findByTableDate(minDate));
-                            model.addAttribute("minRate", mapMin);
-                            model.addAttribute("maxRate", mapMax);
+                            Indicators indicators = getIndicators(listTables, minDate, maxDate);
+                            model.addAttribute("tableNew",
+                                    ratesTableRepository.findByTableDate(indicators.getMaxDate()));
+                            model.addAttribute("tableOld",
+                                    ratesTableRepository.findByTableDate(indicators.getMinDate()));
+                            model.addAttribute("minRate", indicators.getMapMin());
+                            model.addAttribute("maxRate", indicators.getMapMax());
                         } else {
                             message = "Błąd przy pobieraniu z bazy lokalnej";
                         }
@@ -260,11 +216,41 @@ public class HomeController {
                     ratesTable.setCurrencies(exchangeCurrencies);
                 }
                 tablesToReturn.add(ratesTable);
-
             }
             return tablesToReturn;
         } catch (Exception e) {
             return null;
         }
+    }
+
+    public Indicators getIndicators(List<RatesTable> listTables, LocalDate minDate, LocalDate maxDate) {
+        Indicators indicators = new Indicators();
+        indicators.setMapMin(new HashMap<>());
+        indicators.setMapMax(new HashMap<>());
+        indicators.setMaxDate(minDate);
+        indicators.setMinDate(maxDate);
+        for (RatesTable table : listTables) {
+            if (table.getTableDate().isBefore(indicators.getMinDate())) {
+                indicators.setMinDate(table.getTableDate());
+            }
+            if (table.getTableDate().isAfter(indicators.getMaxDate())) {
+                indicators.setMaxDate(table.getTableDate());
+            }
+            List<ExchangeCurrency> tableRates = table.getCurrencies();
+            for (ExchangeCurrency rateToCheck : tableRates) {
+                if (!indicators.getMapMin().containsKey(rateToCheck.getCurrencyCode())) {
+                    indicators.getMapMin().put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
+                    indicators.getMapMax().put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
+                } else {
+                    if (indicators.getMapMin().get(rateToCheck.getCurrencyCode()) > rateToCheck.getExchangeRate()) {
+                        indicators.getMapMin().put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
+                    }
+                    if (indicators.getMapMax().get(rateToCheck.getCurrencyCode()) < rateToCheck.getExchangeRate()) {
+                        indicators.getMapMax().put(rateToCheck.getCurrencyCode(), rateToCheck.getExchangeRate());
+                    }
+                }
+            }
+        }
+        return indicators;
     }
 }
