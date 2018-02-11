@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -36,28 +35,11 @@ public class HomeController {
                     || null == ratesTableRepository.findByTableDate(yesterday)) {
                 List<RatesTable> twoTables = getTables(nbpApiUrl);
                 if (null != twoTables) {
-                    message = "Dane pobrane.";
-                    for (RatesTable table : twoTables) {
-                        if (null == ratesTableRepository.findByTableNumber(table.getTableNumber())) {
-                            List<ExchangeCurrency> tableRates = table.getCurrencies();
-                            ratesTableRepository.save(table);
-                            RatesTable tableFromDatabase = ratesTableRepository.findByTableDate(table.getTableDate());
-                            for (ExchangeCurrency rate : tableRates) {
-                                rate.setTable(tableFromDatabase);
-                                exchangeCurrencyRepository.save(rate);
-                            }
-                        } else {
-                            if (message.equals("Część danych już w bazie ")) {
-                                message = "Dane były już w bazie";
-                            } else {
-                                message = "Część danych już w bazie ";
-                            }
-                        }
-                    }
+                    message = saveToDatabase(twoTables);
                     model.addAttribute("tableOld", twoTables.get(0));
                     model.addAttribute("tableNew", twoTables.get(1));
                 } else {
-                    message = "Błąd, smuteczek";
+                    message = "Błąd, smuteczek (brak internetu bądź API NPB nie działa?)";
                 }
             } else {
                 message = "Dane pobrane z bazy lokalnej.";
@@ -78,23 +60,19 @@ public class HomeController {
                 if (null == ratesTableRepository.findByTableDate(dateToCheckInDatabase)) {
                     String nbpApiUrl = "http://api.nbp.pl/api/exchangerates/tables/A/" + tableDate + "?format=json";
                     List<RatesTable> tableFromQuery = getTables(nbpApiUrl);
-                    RatesTable singleResultTable = tableFromQuery.get(0);
-                    List<ExchangeCurrency> tableRates = singleResultTable.getCurrencies();
-                    ratesTableRepository.save(singleResultTable);
-                    RatesTable tableFromDatabase = ratesTableRepository.findByTableDate(dateToCheckInDatabase);
-                    for (ExchangeCurrency rate : tableRates) {
-                        rate.setTable(tableFromDatabase);
-                        exchangeCurrencyRepository.save(rate);
+                    if (null != tableFromQuery) {
+                        message = saveToDatabase(tableFromQuery);
+                        model.addAttribute("tableQueryResult", tableFromQuery.get(0));
+                    } else {
+                        message = "Tego dnia nie było publikacji tabeli kursowej.";
                     }
-                    model.addAttribute("tableQueryResult", tableFromDatabase);
-                    message = "Dane pobrane z API NPB.";
                 } else {
                     RatesTable tableFromDatabase = ratesTableRepository.findByTableDate(dateToCheckInDatabase);
                     message = "Dane pobrane z bazy lokalnej.";
                     model.addAttribute("tableQueryResult", tableFromDatabase);
                 }
             } catch (Exception e) {
-                message = "Tego dnia nie było publikacji tabeli kursowej.";
+                e.printStackTrace();
             }
         } else {
             message = "Podaj Datę";
@@ -112,15 +90,15 @@ public class HomeController {
             long daysBetween = ChronoUnit.DAYS.between(minDate, maxDate);
             if (daysBetween <= 67) {
                 if (daysBetween > 0) {
-                    boolean dataInDatabase = true;
-                    for (int i = 0; i <= daysBetween; i++) {
-                        if (null == ratesTableRepository.findByTableDate(minDate.plusDays(i))) {
-                            dataInDatabase = false;
-                            break;
+                    try {
+                        boolean dataInDatabase = true;
+                        for (int i = 0; i <= daysBetween; i++) {
+                            if (null == ratesTableRepository.findByTableDate(minDate.plusDays(i))) {
+                                dataInDatabase = false;
+                                break;
+                            }
                         }
-                    }
-                    if (!dataInDatabase) {
-                        try {
+                        if (!dataInDatabase) {
                             String nbpApiUrl = "http://api.nbp.pl/api/exchangerates/tables/A/" + tableDateFrom + "/"
                                     + tableDateTo + "?format=json";
                             List<RatesTable> listTables = getTables(nbpApiUrl);
@@ -136,24 +114,24 @@ public class HomeController {
                             } else {
                                 message = "Błędny zakres dat bądź w wybranym okresie nie było publikacji tabel kursów";
                             }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    } else {
-                        List<RatesTable> listTables = ratesTableRepository
-                                .findByTableDateGreaterThanEqualAndTableDateLessThanEqual(minDate, maxDate);
-                        if (null != listTables) {
-                            Indicators indicators = getIndicators(listTables, minDate, maxDate);
-                            model.addAttribute("tableNew",
-                                    ratesTableRepository.findByTableDate(indicators.getMaxDate()));
-                            model.addAttribute("tableOld",
-                                    ratesTableRepository.findByTableDate(indicators.getMinDate()));
-                            model.addAttribute("minRate", indicators.getMapMin());
-                            model.addAttribute("maxRate", indicators.getMapMax());
                         } else {
-                            message = "Błąd przy pobieraniu z bazy lokalnej";
+                            List<RatesTable> listTables = ratesTableRepository
+                                    .findByTableDateGreaterThanEqualAndTableDateLessThanEqual(minDate, maxDate);
+                            if (null != listTables) {
+                                Indicators indicators = getIndicators(listTables, minDate, maxDate);
+                                model.addAttribute("tableNew",
+                                        ratesTableRepository.findByTableDate(indicators.getMaxDate()));
+                                model.addAttribute("tableOld",
+                                        ratesTableRepository.findByTableDate(indicators.getMinDate()));
+                                model.addAttribute("minRate", indicators.getMapMin());
+                                model.addAttribute("maxRate", indicators.getMapMax());
+                            } else {
+                                message = "Błąd przy pobieraniu z bazy lokalnej";
+                            }
+                            message = "Dane pobrane z bazy lokalnej.";
                         }
-                        message = "Dane pobrane z bazy lokalnej.";
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 } else {
                     message = "Druga data musi być większa niż startowa";
@@ -235,26 +213,29 @@ public class HomeController {
     }
 
     public String saveToDatabase(List<RatesTable> listTables) {
-        String message = "";
         long databaseCheck = 0;
         long tableCount = listTables.size();
-        for (RatesTable table : listTables) {
-            List<ExchangeCurrency> tableRates = table.getCurrencies();
-            if (null == ratesTableRepository.findByTableNumber(table.getTableNumber())) {
-                ratesTableRepository.save(table);
-                RatesTable tableFromDatabase = ratesTableRepository.findByTableDate(table.getTableDate());
-                for (ExchangeCurrency rate : tableRates) {
-                    rate.setTable(tableFromDatabase);
-                    exchangeCurrencyRepository.save(rate);
-                }
-                message = "Dane pobrane.";
-            } else {
-                message = "Częściowe dane już w bazie ";
-                databaseCheck++;
-                if (databaseCheck == tableCount) {
-                    message = "Pełne dane były już w bazie ";
+        String message = "Dane pobrane z API NBP.";
+        try {
+            for (RatesTable table : listTables) {
+                List<ExchangeCurrency> tableRates = table.getCurrencies();
+                if (null == ratesTableRepository.findByTableNumber(table.getTableNumber())) {
+                    ratesTableRepository.save(table);
+                    RatesTable tableFromDatabase = ratesTableRepository.findByTableDate(table.getTableDate());
+                    for (ExchangeCurrency rate : tableRates) {
+                        rate.setTable(tableFromDatabase);
+                        exchangeCurrencyRepository.save(rate);
+                    }
+                } else {
+                    message = "Częściowe dane już w bazie ";
+                    databaseCheck++;
+                    if (databaseCheck == tableCount) {
+                        message = "Pełne dane były już w bazie ";
+                    }
                 }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return message;
     }
