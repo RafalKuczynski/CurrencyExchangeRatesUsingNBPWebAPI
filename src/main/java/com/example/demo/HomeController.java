@@ -110,7 +110,6 @@ public class HomeController {
             LocalDate minDate = LocalDate.parse(tableDateFrom);
             LocalDate maxDate = LocalDate.parse(tableDateTo);
             long daysBetween = ChronoUnit.DAYS.between(minDate, maxDate);
-            long databaseCheck = 0;
             if (daysBetween <= 67) {
                 if (daysBetween > 0) {
                     boolean dataInDatabase = true;
@@ -126,26 +125,7 @@ public class HomeController {
                                     + tableDateTo + "?format=json";
                             List<RatesTable> listTables = getTables(nbpApiUrl);
                             if (null != listTables) {
-                                long tableCount = listTables.size();
-                                for (RatesTable table : listTables) {
-                                    List<ExchangeCurrency> tableRates = table.getCurrencies();
-                                    if (null == ratesTableRepository.findByTableNumber(table.getTableNumber())) {
-                                        ratesTableRepository.save(table);
-                                        RatesTable tableFromDatabase = ratesTableRepository
-                                                .findByTableDate(table.getTableDate());
-                                        for (ExchangeCurrency rate : tableRates) {
-                                            rate.setTable(tableFromDatabase);
-                                            exchangeCurrencyRepository.save(rate);
-                                        }
-                                        message = "Dane pobrane.";
-                                    } else {
-                                        message = "Częściowe dane już w bazie ";
-                                        databaseCheck++;
-                                        if (databaseCheck == tableCount) {
-                                            message = "Pełne dane były już w bazie ";
-                                        }
-                                    }
-                                }
+                                message = saveToDatabase(listTables);
                                 Indicators indicators = getIndicators(listTables, minDate, maxDate);
                                 model.addAttribute("tableNew",
                                         ratesTableRepository.findByTableDate(indicators.getMaxDate()));
@@ -252,5 +232,30 @@ public class HomeController {
             }
         }
         return indicators;
+    }
+
+    public String saveToDatabase(List<RatesTable> listTables) {
+        String message = "";
+        long databaseCheck = 0;
+        long tableCount = listTables.size();
+        for (RatesTable table : listTables) {
+            List<ExchangeCurrency> tableRates = table.getCurrencies();
+            if (null == ratesTableRepository.findByTableNumber(table.getTableNumber())) {
+                ratesTableRepository.save(table);
+                RatesTable tableFromDatabase = ratesTableRepository.findByTableDate(table.getTableDate());
+                for (ExchangeCurrency rate : tableRates) {
+                    rate.setTable(tableFromDatabase);
+                    exchangeCurrencyRepository.save(rate);
+                }
+                message = "Dane pobrane.";
+            } else {
+                message = "Częściowe dane już w bazie ";
+                databaseCheck++;
+                if (databaseCheck == tableCount) {
+                    message = "Pełne dane były już w bazie ";
+                }
+            }
+        }
+        return message;
     }
 }
