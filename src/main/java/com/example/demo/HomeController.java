@@ -42,6 +42,8 @@ public class HomeController {
                     message = "Błąd, smuteczek (brak internetu bądź API NPB nie działa?)";
                 }
             } else {
+                model.addAttribute("tableOld", ratesTableRepository.findByTableDate(yesterday));
+                model.addAttribute("tableNew", ratesTableRepository.findByTableDate(today));
                 message = "Dane pobrane z bazy lokalnej.";
             }
         } catch (Exception e) {
