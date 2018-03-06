@@ -19,6 +19,9 @@ import java.time.temporal.ChronoUnit;
 @Controller
 public class HomeController {
 
+    static final String nbpApiUrlCommonPartForTableA = "http://api.nbp.pl/api/exchangerates/tables/A/";
+    static final int maxNumberOfTablesFromNbpAPI = 67;
+
     @Autowired
     RatesTableRepository ratesTableRepository;
     @Autowired
@@ -27,7 +30,7 @@ public class HomeController {
     @RequestMapping("/")
     public String hello(Model model) {
         String message = "";
-        String nbpApiUrl = "http://api.nbp.pl/api/exchangerates/tables/A/last/2?format=json";
+        String nbpApiUrl = nbpApiUrlCommonPartForTableA + "last/2?format=json";
         LocalDate today = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);
         try {
@@ -60,7 +63,7 @@ public class HomeController {
             LocalDate dateToCheckInDatabase = LocalDate.parse(tableDate);
             try {
                 if (null == ratesTableRepository.findByTableDate(dateToCheckInDatabase)) {
-                    String nbpApiUrl = "http://api.nbp.pl/api/exchangerates/tables/A/" + tableDate + "?format=json";
+                    String nbpApiUrl = nbpApiUrlCommonPartForTableA + tableDate + "?format=json";
                     List<RatesTable> tableFromQuery = getTables(nbpApiUrl);
                     if (null != tableFromQuery) {
                         message = saveToDatabase(tableFromQuery);
@@ -90,7 +93,7 @@ public class HomeController {
             LocalDate minDate = LocalDate.parse(tableDateFrom);
             LocalDate maxDate = LocalDate.parse(tableDateTo);
             long daysBetween = ChronoUnit.DAYS.between(minDate, maxDate);
-            if (daysBetween <= 67) {
+            if (daysBetween <= maxNumberOfTablesFromNbpAPI) {
                 if (daysBetween > 0) {
                     try {
                         boolean dataInDatabase = true;
@@ -101,8 +104,8 @@ public class HomeController {
                             }
                         }
                         if (!dataInDatabase) {
-                            String nbpApiUrl = "http://api.nbp.pl/api/exchangerates/tables/A/" + tableDateFrom + "/"
-                                    + tableDateTo + "?format=json";
+                            String nbpApiUrl = nbpApiUrlCommonPartForTableA + tableDateFrom + "/" + tableDateTo
+                                    + "?format=json";
                             List<RatesTable> listTables = getTables(nbpApiUrl);
                             if (null != listTables) {
                                 message = saveToDatabase(listTables);
