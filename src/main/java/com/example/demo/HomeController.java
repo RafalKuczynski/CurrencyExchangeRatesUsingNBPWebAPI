@@ -142,7 +142,7 @@ public class HomeController {
                     message = "Druga data musi być większa niż startowa";
                 }
             } else {
-                message = "Zakres dat (" + daysBetween + "dni) przekracza dopuszczalne maksimum 67 dni";
+                message = "Zakres dat (" + daysBetween + "dni) przekracza dopuszczalne maksimum "+maxNumberOfTablesFromNbpAPI+" dni";
             }
         } else {
             message = "Podaj Daty";
