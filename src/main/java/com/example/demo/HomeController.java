@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -11,6 +13,7 @@ import org.json.simple.parser.JSONParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
@@ -27,6 +30,15 @@ public class HomeController {
     @Autowired
     ExchangeCurrencyRepository exchangeCurrencyRepository;
 
+    Locale currentLocale = new Locale("en");
+    ResourceBundle messages = ResourceBundle.getBundle("messages", currentLocale);
+
+    // @ModelAttribute("labels")
+    // public ResourceBundle labels() {
+    // ResourceBundle labels=ResourceBundle.getBundle("labels",currentLocale);
+    // return labels;
+    // }
+
     @RequestMapping("/")
     public String hello(Model model) {
         String message = "";
@@ -42,12 +54,12 @@ public class HomeController {
                     model.addAttribute("tableOld", twoTables.get(0));
                     model.addAttribute("tableNew", twoTables.get(1));
                 } else {
-                    message = "Błąd, smuteczek (brak internetu bądź API NPB nie działa?)";
+                    message = messages.getString("noInternetOrNbpAPIDown");
                 }
             } else {
                 model.addAttribute("tableOld", ratesTableRepository.findByTableDate(yesterday));
                 model.addAttribute("tableNew", ratesTableRepository.findByTableDate(today));
-                message = "Dane pobrane z bazy lokalnej.";
+                message = messages.getString("locallyAcquired");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -69,18 +81,18 @@ public class HomeController {
                         message = saveToDatabase(tableFromQuery);
                         model.addAttribute("tableQueryResult", tableFromQuery.get(0));
                     } else {
-                        message = "Tego dnia nie było publikacji tabeli kursowej.";
+                        message = messages.getString("noPublicationOnThisDay");
                     }
                 } else {
                     RatesTable tableFromDatabase = ratesTableRepository.findByTableDate(dateToCheckInDatabase);
-                    message = "Dane pobrane z bazy lokalnej.";
+                    message = messages.getString("locallyAcquired");
                     model.addAttribute("tableQueryResult", tableFromDatabase);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         } else {
-            message = "Podaj Datę";
+            message = messages.getString("enterDate");
         }
         model.addAttribute("message", message);
         return "resultQuery";
@@ -117,7 +129,7 @@ public class HomeController {
                                 model.addAttribute("minRate", indicators.getMapMin());
                                 model.addAttribute("maxRate", indicators.getMapMax());
                             } else {
-                                message = "Błędny zakres dat bądź w wybranym okresie nie było publikacji tabel kursów";
+                                message = messages.getString("invalidDateRangeOrNoPublications");
                             }
                         } else {
                             List<RatesTable> listTables = ratesTableRepository
@@ -131,18 +143,19 @@ public class HomeController {
                                 model.addAttribute("minRate", indicators.getMapMin());
                                 model.addAttribute("maxRate", indicators.getMapMax());
                             } else {
-                                message = "Błąd przy pobieraniu z bazy lokalnej";
+                                message = messages.getString("errorDuringLocalAcquiry");
                             }
-                            message = "Dane pobrane z bazy lokalnej.";
+                            message = messages.getString("locallyAcquired");
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                 } else {
-                    message = "Druga data musi być większa niż startowa";
+                    message = messages.getString("secondDateBeforeFirst");
                 }
             } else {
-                message = "Zakres dat (" + daysBetween + "dni) przekracza dopuszczalne maksimum "+maxNumberOfTablesFromNbpAPI+" dni";
+                message = messages.getString("dateRangeExceedsMaximum") + daysBetween + " / "
+                        + maxNumberOfTablesFromNbpAPI;
             }
         } else {
             message = "Podaj Daty";
@@ -220,7 +233,7 @@ public class HomeController {
     public String saveToDatabase(List<RatesTable> listTables) {
         long databaseCheck = 0;
         long tableCount = listTables.size();
-        String message = "Dane pobrane z API NBP.";
+        String message = messages.getString("dataAcuiredFromNbpAPI");
         try {
             for (RatesTable table : listTables) {
                 List<ExchangeCurrency> tableRates = table.getCurrencies();
@@ -232,10 +245,10 @@ public class HomeController {
                         exchangeCurrencyRepository.save(rate);
                     }
                 } else {
-                    message = "Częściowe dane już w bazie ";
+                    message = messages.getString("partialDataInDatabase");
                     databaseCheck++;
                     if (databaseCheck == tableCount) {
-                        message = "Pełne dane były już w bazie ";
+                        message = messages.getString("completeDataInDatabase");
                     }
                 }
             }
