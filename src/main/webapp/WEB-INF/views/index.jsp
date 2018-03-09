@@ -14,20 +14,21 @@
 	src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
 <script
 	src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
-<title>Spring Boot</title>
+<title>NBP API</title>
 </head>
 <body>
 	<b>${message}</b>
-	<br>
-	<br> Tabela z dnia: ${tableNew.tableDate} Numer:
+	<br><a href="/?lang=en">English language</a> 
+	<br><a href="/?lang=pl">Jezyk polski</a> 
+	<br> ${labels.tableDay}: ${tableNew.tableDate} ${labels.number}:
 	${tableNew.tableNumber}
 	<table class="table table-hover table-sm table-bordered">
 		<thead class="thead-dark">
 			<tr>
-				<th scope="col">Nazwa waluty</th>
-				<th scope="col">Kod waluty</th>
-				<th scope="col">Kurs ${tableNew.tableDate}</th>
-				<th scope="col">Kurs ${tableOld.tableDate}</th>
+				<th scope="col">${labels.currencyName}</th>
+				<th scope="col">${labels.currencyCode}</th>
+				<th scope="col">${labels.exchangeRate} ${tableNew.tableDate}</th>
+				<th scope="col">${labels.exchangeRate} ${tableOld.tableDate}</th>
 				<th scope="col"></th>
 			</tr>
 		</thead>
@@ -40,13 +41,13 @@
 						<td><b>${currency.exchangeRate}</b></td>
 						<td>${currencyOld.exchangeRate}</td>
 						<c:if test="${currency.exchangeRate > currencyOld.exchangeRate}">
-							<td><font color="green">WZROST</font></td>
+							<td><font color="green">${labels.increase}</font></td>
 						</c:if>
 						<c:if test="${currency.exchangeRate < currencyOld.exchangeRate}">
-							<td><font color="red">SPADEK</font></td>
+							<td><font color="red">${labels.decrease}</font></td>
 						</c:if>
 						<c:if test="${currency.exchangeRate eq currencyOld.exchangeRate}">
-							<td>BEZ ZMIAN</td>
+							<td>${labels.noChange}</td>
 						</c:if>
 					</tr>
 				</c:if>
@@ -55,13 +56,14 @@
 	</table>
 	<br>
 	<form action="/search-date" method="post">
-		Tabela z dnia: <input type="date" name="tableDate" value="" /> <input
+		${labels.tableDay}: <input type="date" name="tableDate" value="" /> <input
 			type="submit" />
 	</form>
 	<br>
 	<form action="/date-range" method="post">
-		Zakres tabel:<input type="date" name="tableDateFrom" value="" /> <input
-			type="date" name="tableDateTo" value="" /> <input type="submit" />
+		${labels.tableRange}:<input type="date" name="tableDateFrom" value="" />
+		<input type="date" name="tableDateTo" value="" /> <input
+			type="submit" />
 	</form>
 </body>
 </html>

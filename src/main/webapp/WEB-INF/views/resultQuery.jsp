@@ -16,20 +16,20 @@
 	src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
 </head>
 <body>
-	<a href="/">Strona Startowa</a>
+	<a href="/"> ${labels.homepage}</a>
 	<br>
 	<br>
 	<b>${message}</b>
 	<br>
 	<br>
 	<c:if test="${not empty tableQueryResult}">
-	Tabela z dnia: ${tableQueryResult.tableDate} Numer:	${tableQueryResult.tableNumber}
+	${labels.tableDay}: ${tableQueryResult.tableDate} ${labels.number}:	${tableQueryResult.tableNumber}
 		<table class="table table-hover table-sm table-bordered">
 			<thead class="thead-dark">
 				<tr>
-					<th scope="col">Nazwa waluty</th>
-					<th scope="col">Kod waluty</th>
-					<th scope="col">Kurs ${tableQueryResult.tableDate}</th>
+					<th scope="col">${labels.currencyName}</th>
+					<th scope="col">${labels.currencyCode}</th>
+					<th scope="col">${labels.exchangeRate} ${tableQueryResult.tableDate}</th>
 				</tr>
 			</thead>
 			<c:forEach items="${tableQueryResult.currencies}" var="currency">

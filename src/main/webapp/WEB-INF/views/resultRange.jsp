@@ -16,24 +16,24 @@
 <title>Spring Boot</title>
 </head>
 <body>
-	<a href="/">Strona Startowa</a>
+	<a href="/">${labels.homepage}</a>
 	<br>
 	<br>
 	<b>${message}</b>
 	<br>
 	<br>
 	<c:if test="${not empty tableNew}">
-	Tabela z dnia: ${tableNew.tableDate} Numer: ${tableNew.tableNumber}
+	${labels.tableDay}:${tableNew.tableDate} ${labels.number}: ${tableNew.tableNumber}
 		<table class="table table-hover table-sm table-bordered">
 			<thead class="thead-dark">
 				<tr>
-					<th scope="col">Nazwa waluty</th>
-					<th scope="col">Kod waluty</th>
-					<th scope="col">Kurs ${tableNew.tableDate}</th>
-					<th scope="col">Kurs ${tableOld.tableDate}</th>
+					<th scope="col">${labels.currencyName}</th>
+					<th scope="col">${labels.currencyCode}</th>
+					<th scope="col">${labels.exchangeRate} ${tableNew.tableDate}</th>
+					<th scope="col">${labels.exchangeRate} ${tableOld.tableDate}</th>
 					<th scope="col"></th>
-					<th scope="col">Kurs minimalny</th>
-					<th scope="col">Kurs maksymalny</th>
+					<th scope="col">${labels.minExchangeRate}</th>
+					<th scope="col">${labels.maxExchangeRate}</th>
 				</tr>
 			</thead>
 			<c:forEach items="${tableNew.currencies}" var="currency">
@@ -45,13 +45,13 @@
 							<td><b>${currency.exchangeRate}</b></td>
 							<td><b>${currencyOld.exchangeRate}</b></td>
 							<c:if test="${currency.exchangeRate > currencyOld.exchangeRate}">
-								<td><font color="green">WZROST</font></td>
+								<td><font color="green">${labels.increase}</font></td>
 							</c:if>
 							<c:if test="${currency.exchangeRate < currencyOld.exchangeRate}">
-								<td><font color="red">SPADEK</font></td>
+								<td><font color="red">${labels.decrease}</font></td>
 							</c:if>
 							<c:if test="${currency.exchangeRate eq currencyOld.exchangeRate}">
-								<td>BEZ ZMIAN</td>
+								<td>${labels.noChange}</td>
 							</c:if>
 							<td>${minRate[currency.currencyCode]}</td>
 							<td>${maxRate[currency.currencyCode]}</td>

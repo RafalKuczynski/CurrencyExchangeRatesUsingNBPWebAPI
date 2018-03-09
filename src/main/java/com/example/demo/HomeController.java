@@ -33,14 +33,29 @@ public class HomeController {
     Locale currentLocale = new Locale("en");
     ResourceBundle messages = ResourceBundle.getBundle("messages", currentLocale);
 
-    // @ModelAttribute("labels")
-    // public ResourceBundle labels() {
-    // ResourceBundle labels=ResourceBundle.getBundle("labels",currentLocale);
-    // return labels;
-    // }
+    @ModelAttribute("labels")
+    public ResourceBundle labels() {
+        ResourceBundle labels = ResourceBundle.getBundle("labels", currentLocale);
+        return labels;
+    }
+
+    public String resourceRefresh() {
+        messages = ResourceBundle.getBundle("messages", currentLocale);
+        return "redirect:/";
+    }
 
     @RequestMapping("/")
-    public String hello(Model model) {
+    public String hello(Model model, @RequestParam(required = false) String lang) {
+        if (lang != null) {
+            if (lang.equals("en")) {
+                currentLocale = new Locale("en");
+                return resourceRefresh();
+            }
+            if (lang.equals("pl")) {
+                currentLocale = new Locale("pl");
+                return resourceRefresh();
+            }
+        }
         String message = "";
         String nbpApiUrl = nbpApiUrlCommonPartForTableA + "last/2?format=json";
         LocalDate today = LocalDate.now();
