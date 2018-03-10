@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.nbpapi;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -13,7 +13,6 @@ import org.json.simple.parser.JSONParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
@@ -32,29 +31,12 @@ public class HomeController {
 
     Locale currentLocale = new Locale("en");
     ResourceBundle messages = ResourceBundle.getBundle("messages", currentLocale);
-
-    @ModelAttribute("labels")
-    public ResourceBundle labels() {
-        ResourceBundle labels = ResourceBundle.getBundle("labels", currentLocale);
-        return labels;
-    }
-
-    public String resourceRefresh() {
-        messages = ResourceBundle.getBundle("messages", currentLocale);
-        return "redirect:/";
-    }
+    ResourceBundle labels = ResourceBundle.getBundle("labels", currentLocale);
 
     @RequestMapping("/")
     public String hello(Model model, @RequestParam(required = false) String lang) {
         if (lang != null) {
-            if (lang.equals("en")) {
-                currentLocale = new Locale("en");
-                return resourceRefresh();
-            }
-            if (lang.equals("pl")) {
-                currentLocale = new Locale("pl");
-                return resourceRefresh();
-            }
+            languageCheck(lang);
         }
         String message = "";
         String nbpApiUrl = nbpApiUrlCommonPartForTableA + "last/2?format=json";
@@ -63,11 +45,11 @@ public class HomeController {
         try {
             if (null == ratesTableRepository.findByTableDate(today)
                     || null == ratesTableRepository.findByTableDate(yesterday)) {
-                List<RatesTable> twoTables = getTables(nbpApiUrl);
-                if (null != twoTables) {
-                    message = saveToDatabase(twoTables);
-                    model.addAttribute("tableOld", twoTables.get(0));
-                    model.addAttribute("tableNew", twoTables.get(1));
+                List<RatesTable> lastTwoTables = getTables(nbpApiUrl);
+                if (null != lastTwoTables) {
+                    message = saveToDatabase(lastTwoTables);
+                    model.addAttribute("tableOld", lastTwoTables.get(0));
+                    model.addAttribute("tableNew", lastTwoTables.get(1));
                 } else {
                     message = messages.getString("noInternetOrNbpAPIDown");
                 }
@@ -80,6 +62,7 @@ public class HomeController {
             e.printStackTrace();
         }
         model.addAttribute("message", message);
+        model.addAttribute("labels", labels);
         return "index";
     }
 
@@ -110,6 +93,7 @@ public class HomeController {
             message = messages.getString("enterDate");
         }
         model.addAttribute("message", message);
+        model.addAttribute("labels", labels);
         return "resultQuery";
     }
 
@@ -176,6 +160,7 @@ public class HomeController {
             message = "Podaj Daty";
         }
         model.addAttribute("message", message);
+        model.addAttribute("labels", labels);
         return "resultRange";
     }
 
@@ -271,5 +256,20 @@ public class HomeController {
             e.printStackTrace();
         }
         return message;
+    }
+
+    public void languageCheck(String lang) {
+        if (lang.equals("en")) {
+            currentLocale = new Locale("en");
+        }
+        if (lang.equals("pl")) {
+            currentLocale = new Locale("pl");
+        }
+        refreshLanguageSpecificResources();
+    }
+
+    public void refreshLanguageSpecificResources() {
+        messages = ResourceBundle.getBundle("messages", currentLocale);
+        labels = ResourceBundle.getBundle("labels", currentLocale);
     }
 }

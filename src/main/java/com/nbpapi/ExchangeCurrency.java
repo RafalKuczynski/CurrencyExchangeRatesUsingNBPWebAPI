@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.nbpapi;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;

@@ -1,5 +1,4 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-	pageEncoding="ISO-8859-1"%>
+<%@ page language="java" contentType="text/html; charset=UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form"%>
 
@@ -18,8 +17,10 @@
 </head>
 <body>
 	<b>${message}</b>
-	<br><a href="/?lang=en">English language</a> 
-	<br><a href="/?lang=pl">Jezyk polski</a> 
+	<br>
+	<a href="/?lang=en">Messages and labels in English</a>
+	<br>
+	<a href="/?lang=pl">Polska wersja językowa</a>
 	<br> ${labels.tableDay}: ${tableNew.tableDate} ${labels.number}:
 	${tableNew.tableNumber}
 	<table class="table table-hover table-sm table-bordered">
@@ -27,8 +28,8 @@
 			<tr>
 				<th scope="col">${labels.currencyName}</th>
 				<th scope="col">${labels.currencyCode}</th>
-				<th scope="col">${labels.exchangeRate} ${tableNew.tableDate}</th>
-				<th scope="col">${labels.exchangeRate} ${tableOld.tableDate}</th>
+				<th scope="col">${labels.exchangeRate}${tableNew.tableDate}</th>
+				<th scope="col">${labels.exchangeRate}${tableOld.tableDate}</th>
 				<th scope="col"></th>
 			</tr>
 		</thead>
@@ -57,13 +58,13 @@
 	<br>
 	<form action="/search-date" method="post">
 		${labels.tableDay}: <input type="date" name="tableDate" value="" /> <input
-			type="submit" />
+			type="submit" value="${labels.search}" />
 	</form>
 	<br>
 	<form action="/date-range" method="post">
 		${labels.tableRange}:<input type="date" name="tableDateFrom" value="" />
 		<input type="date" name="tableDateTo" value="" /> <input
-			type="submit" />
+			type="submit" value="${labels.search}" />
 	</form>
 </body>
 </html>

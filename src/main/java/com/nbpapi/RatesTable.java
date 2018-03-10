@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.nbpapi;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
