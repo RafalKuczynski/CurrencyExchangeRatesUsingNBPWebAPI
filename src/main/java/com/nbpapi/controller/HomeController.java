@@ -1,4 +1,4 @@
-package com.nbpapi;
+package com.nbpapi.controller;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -16,6 +16,13 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
+
+import com.nbpapi.Indicators;
+import com.nbpapi.entity.ExchangeCurrency;
+import com.nbpapi.entity.RatesTable;
+import com.nbpapi.repository.ExchangeCurrencyRepository;
+import com.nbpapi.repository.RatesTableRepository;
+
 import java.time.temporal.ChronoUnit;
 
 @Controller

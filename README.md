@@ -14,5 +14,5 @@ Project requires a MySQL database (database name - default *nbp*, username and p
 
 Upon start, application checks for availability of current and previous average exchange rates. If not available in local database, it will send a query to NBP's Web API. The two are compared and results are shown in a table.
 There are two additional queries possible using the forms below the table:
-* First one returns currency exchange rates for a specific date (first checked if available locally, if not - recovered from NBP's Web API)
-* Second gives You the opportunity to see the changes in average exchange rates during a specified period. It provides information on exchange rates on the first and last day and the maximum and minimum exchange rates during specified time period (as in previous examples, the data is first checked for availability locally).
+* First one returns currency exchange rates for a specific date (first checked if available locally, if not - they are acquired from NBP's Web API)
+* Second one gives You the opportunity to see the changes in average exchange rates during a specified period. It provides information on exchange rates on the first and last day and also the maximum and minimum exchange rates during specified time period (as in previous examples, the data is first checked for availability locally).

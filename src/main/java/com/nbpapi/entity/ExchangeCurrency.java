@@ -1,4 +1,4 @@
-package com.nbpapi;
+package com.nbpapi.entity;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;

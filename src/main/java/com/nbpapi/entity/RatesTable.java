@@ -1,4 +1,4 @@
-package com.nbpapi;
+package com.nbpapi.entity;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
