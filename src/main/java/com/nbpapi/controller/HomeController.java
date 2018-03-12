@@ -42,7 +42,7 @@ public class HomeController {
 
     @RequestMapping("/")
     public String hello(Model model, @RequestParam(required = false) String lang) {
-        if (lang != null) {
+        if (null != lang && !lang.isEmpty()) {
             languageCheck(lang);
         }
         String message = "";
@@ -74,9 +74,9 @@ public class HomeController {
     }
 
     @RequestMapping("/search-date")
-    public String searchDate(@RequestParam String tableDate, Model model) {
+    public String searchDate(@RequestParam(required = false) String tableDate, Model model) {
         String message = "";
-        if ("" != tableDate) {
+        if (null != tableDate && !tableDate.isEmpty()) {
             LocalDate dateToCheckInDatabase = LocalDate.parse(tableDate);
             try {
                 if (null == ratesTableRepository.findByTableDate(dateToCheckInDatabase)) {
@@ -105,22 +105,17 @@ public class HomeController {
     }
 
     @RequestMapping("/date-range")
-    public String hello(@RequestParam String tableDateFrom, @RequestParam String tableDateTo, Model model) {
+    public String hello(@RequestParam(required = false) String tableDateFrom,
+            @RequestParam(required = false) String tableDateTo, Model model) {
         String message = "";
-        if ("" != tableDateFrom && "" != tableDateTo) {
+        if ((null != tableDateFrom && !tableDateFrom.isEmpty()) && (null != tableDateTo && !tableDateTo.isEmpty())) {
             LocalDate minDate = LocalDate.parse(tableDateFrom);
             LocalDate maxDate = LocalDate.parse(tableDateTo);
             long daysBetween = ChronoUnit.DAYS.between(minDate, maxDate);
             if (daysBetween <= maxNumberOfTablesFromNbpAPI) {
                 if (daysBetween > 0) {
                     try {
-                        boolean dataInDatabase = true;
-                        for (int i = 0; i <= daysBetween; i++) {
-                            if (null == ratesTableRepository.findByTableDate(minDate.plusDays(i))) {
-                                dataInDatabase = false;
-                                break;
-                            }
-                        }
+                        boolean dataInDatabase = checkIfTablesInLocalDatabaseByDates(minDate, daysBetween);
                         if (!dataInDatabase) {
                             String nbpApiUrl = nbpApiUrlCommonPartForTableA + tableDateFrom + "/" + tableDateTo
                                     + "?format=json";
@@ -128,29 +123,15 @@ public class HomeController {
                             if (null != listTables) {
                                 message = saveToDatabase(listTables);
                                 Indicators indicators = getIndicators(listTables, minDate, maxDate);
-                                model.addAttribute("tableNew",
-                                        ratesTableRepository.findByTableDate(indicators.getMaxDate()));
-                                model.addAttribute("tableOld",
-                                        ratesTableRepository.findByTableDate(indicators.getMinDate()));
-                                model.addAttribute("minRate", indicators.getMapMin());
-                                model.addAttribute("maxRate", indicators.getMapMax());
+                                addIndicatorsToModel(model, indicators);
                             } else {
                                 message = messages.getString("invalidDateRangeOrNoPublications");
                             }
                         } else {
                             List<RatesTable> listTables = ratesTableRepository
                                     .findByTableDateGreaterThanEqualAndTableDateLessThanEqual(minDate, maxDate);
-                            if (null != listTables) {
-                                Indicators indicators = getIndicators(listTables, minDate, maxDate);
-                                model.addAttribute("tableNew",
-                                        ratesTableRepository.findByTableDate(indicators.getMaxDate()));
-                                model.addAttribute("tableOld",
-                                        ratesTableRepository.findByTableDate(indicators.getMinDate()));
-                                model.addAttribute("minRate", indicators.getMapMin());
-                                model.addAttribute("maxRate", indicators.getMapMax());
-                            } else {
-                                message = messages.getString("errorDuringLocalAcquiry");
-                            }
+                            Indicators indicators = getIndicators(listTables, minDate, maxDate);
+                            addIndicatorsToModel(model, indicators);
                             message = messages.getString("locallyAcquired");
                         }
                     } catch (Exception e) {
@@ -169,6 +150,15 @@ public class HomeController {
         model.addAttribute("message", message);
         model.addAttribute("labels", labels);
         return "resultRange";
+    }
+
+    public boolean checkIfTablesInLocalDatabaseByDates(LocalDate minDate, long daysBetween) {
+        for (int i = 0; i <= daysBetween; i++) {
+            if (null == ratesTableRepository.findByTableDate(minDate.plusDays(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public List<RatesTable> getTables(String nbpApiUrl) {
@@ -206,6 +196,34 @@ public class HomeController {
         }
     }
 
+    public String saveToDatabase(List<RatesTable> listTables) {
+        long databaseCheck = 0;
+        long tableCount = listTables.size();
+        String message = messages.getString("dataAcuiredFromNbpAPI");
+        try {
+            for (RatesTable table : listTables) {
+                List<ExchangeCurrency> tableRates = table.getCurrencies();
+                if (null == ratesTableRepository.findByTableNumber(table.getTableNumber())) {
+                    ratesTableRepository.save(table);
+                    RatesTable tableFromDatabase = ratesTableRepository.findByTableDate(table.getTableDate());
+                    for (ExchangeCurrency rate : tableRates) {
+                        rate.setTable(tableFromDatabase);
+                        exchangeCurrencyRepository.save(rate);
+                    }
+                } else {
+                    message = messages.getString("partialDataInDatabase");
+                    databaseCheck++;
+                    if (databaseCheck == tableCount) {
+                        message = messages.getString("completeDataInDatabase");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return message;
+    }
+
     public Indicators getIndicators(List<RatesTable> listTables, LocalDate minDate, LocalDate maxDate) {
         Indicators indicators = new Indicators();
         indicators.setMapMin(new HashMap<>());
@@ -237,32 +255,11 @@ public class HomeController {
         return indicators;
     }
 
-    public String saveToDatabase(List<RatesTable> listTables) {
-        long databaseCheck = 0;
-        long tableCount = listTables.size();
-        String message = messages.getString("dataAcuiredFromNbpAPI");
-        try {
-            for (RatesTable table : listTables) {
-                List<ExchangeCurrency> tableRates = table.getCurrencies();
-                if (null == ratesTableRepository.findByTableNumber(table.getTableNumber())) {
-                    ratesTableRepository.save(table);
-                    RatesTable tableFromDatabase = ratesTableRepository.findByTableDate(table.getTableDate());
-                    for (ExchangeCurrency rate : tableRates) {
-                        rate.setTable(tableFromDatabase);
-                        exchangeCurrencyRepository.save(rate);
-                    }
-                } else {
-                    message = messages.getString("partialDataInDatabase");
-                    databaseCheck++;
-                    if (databaseCheck == tableCount) {
-                        message = messages.getString("completeDataInDatabase");
-                    }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return message;
+    public void addIndicatorsToModel(Model model, Indicators indicators) {
+        model.addAttribute("tableNew", ratesTableRepository.findByTableDate(indicators.getMaxDate()));
+        model.addAttribute("tableOld", ratesTableRepository.findByTableDate(indicators.getMinDate()));
+        model.addAttribute("minRate", indicators.getMapMin());
+        model.addAttribute("maxRate", indicators.getMapMax());
     }
 
     public void languageCheck(String lang) {
