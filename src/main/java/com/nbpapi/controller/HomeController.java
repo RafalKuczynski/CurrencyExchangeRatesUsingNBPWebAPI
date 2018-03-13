@@ -50,8 +50,8 @@ public class HomeController {
         LocalDate today = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);
         try {
-            if (null == ratesTableRepository.findByTableDate(today)
-                    || null == ratesTableRepository.findByTableDate(yesterday)) {
+            boolean dataInDatabase = checkIfTablesInLocalDatabaseByDates(yesterday, 1);
+            if (!dataInDatabase)  {
                 List<RatesTable> lastTwoTables = getTables(nbpApiUrl);
                 if (null != lastTwoTables) {
                     message = saveToDatabase(lastTwoTables);
@@ -79,7 +79,8 @@ public class HomeController {
         if (null != tableDate && !tableDate.isEmpty()) {
             LocalDate dateToCheckInDatabase = LocalDate.parse(tableDate);
             try {
-                if (null == ratesTableRepository.findByTableDate(dateToCheckInDatabase)) {
+                boolean dataInDatabase = checkIfTablesInLocalDatabaseByDates(dateToCheckInDatabase, 0);
+                if (!dataInDatabase)  {
                     String nbpApiUrl = nbpApiUrlCommonPartForTableA + tableDate + "?format=json";
                     List<RatesTable> tableFromQuery = getTables(nbpApiUrl);
                     if (null != tableFromQuery) {
